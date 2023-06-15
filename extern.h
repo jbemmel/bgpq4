@@ -64,6 +64,7 @@ typedef enum {
 	V_NOKIA_MD,
 	V_ARISTA,
 	V_NOKIA_SRL,
+	V_NOKIA_SROS_YAML,
 } bgpq_vendor_t;
 
 typedef enum {
@@ -74,7 +75,8 @@ typedef enum {
 	T_ASSET,
 	T_PREFIXLIST,	
 	T_EACL,
-	T_ROUTE_FILTER_LIST
+	T_ROUTE_FILTER_LIST,
+	T_COUNTING_FILTER,
 } bgpq_gen_t;
 
 struct bgpq_expander;
@@ -143,6 +145,7 @@ void bgpq4_print_asset(FILE *f, struct bgpq_expander *b);
 void bgpq4_print_oaspath(FILE *f, struct bgpq_expander *b);
 void bgpq4_print_aslist(FILE *f, struct bgpq_expander *b);
 void bgpq4_print_route_filter_list(FILE *f, struct bgpq_expander *b);
+void bgpq4_print_counting_filter(FILE *f, struct bgpq_expander *b);
 
 void sx_radix_node_freeall(struct sx_radix_node *n);
 void sx_radix_tree_freeall(struct sx_radix_tree *t);
