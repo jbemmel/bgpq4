@@ -1377,40 +1377,6 @@ checkSon:
 }
 
 static void
-bgpq4_print_nokia_sros_yaml_prefix(struct sx_radix_node *n, void *ff)
-{
-	char 	 prefix[128];
-	FILE	*f = (FILE*)ff;
-
-	if (n->isGlue)
-		goto checkSon;
-
-	if (!f)
-		f = stdout;
-
-	sx_prefix_snprintf(n->prefix, prefix, sizeof(prefix));
-    fprintf(f, "   - ip-prefix: \"%s\"\n", prefix);
-	if (!n->isAggregate) {
-		fprintf(f, "     type: \"exact\"\n");
-	} else {
-		if (n->aggregateLow > n->prefix->masklen) {
-			fprintf(f,"     type: \"range\"\n"
-			          "     start-length: %u\n"
-			          "     end-length: %u\n",
-			    n->aggregateLow, n->aggregateHi);
-		} else {
-			fprintf(f,"     type: \"through\"\n"
-			          "     through-length: %u\n", n->aggregateHi);
-		}
-	}
-
-checkSon:
-	if (n->son)
-		bgpq4_print_nokia_sros_yaml_prefix(n->son, ff);
-}
-
-
-static void
 bgpq4_print_nokia_srl_prefix(struct sx_radix_node *n, void *ff)
 {
 	char 	 prefix[128];
@@ -1847,20 +1813,6 @@ bgpq4_print_nokia_md_ipprefixlist(FILE *f, struct bgpq_expander *b)
 }
 
 static void
-bgpq4_print_nokia_sros_yaml_ipprefixlist(FILE *f, struct bgpq_expander *b)
-{
-	bname = b->name ? b->name : "NN";
-
-	fprintf(f, "configure: \n policy-options:\n  prefix-list:\n   name: \"%s\"\n   prefix:\n",
-	    bname);
-
-
-	if (!sx_radix_tree_empty(b->tree)) {
-		sx_radix_tree_foreach(b->tree, bgpq4_print_nokia_sros_yaml_prefix, f);
-	}
-}
-
-static void
 bgpq4_print_nokia_srl_prefixset(FILE *f, struct bgpq_expander *b)
 {
 	bname = b->name ? b->name : "NN";
@@ -2009,9 +1961,6 @@ bgpq4_print_prefixlist(FILE *f, struct bgpq_expander *b)
 		break;
 	case V_NOKIA_MD:
 		bgpq4_print_nokia_md_ipprefixlist(f, b);
-		break;
-	case V_NOKIA_SROS_YAML:
-		bgpq4_print_nokia_sros_yaml_ipprefixlist(f, b);
 		break;
 	case V_NOKIA_SRL:
 		bgpq4_print_nokia_srl_prefixset(f, b);

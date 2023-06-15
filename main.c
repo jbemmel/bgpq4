@@ -200,7 +200,7 @@ main(int argc, char* argv[])
 		expander.sources=getenv("IRRD_SOURCES");
 
 	while ((c = getopt(argc, argv,
-	    "23467a:AbBcdDEeF:S:jJKf:l:L:m:M:NnpW:r:R:G:H:tTh:UuwXsvyz")) != EOF) {
+	    "23467a:AbBcdDEeF:S:jJKf:l:L:m:M:NnpW:r:R:G:H:tTh:UuwXsvz")) != EOF) {
 	switch (c) {
 	case '2':
 		if (expander.vendor != V_NOKIA_MD) {
@@ -457,16 +457,6 @@ main(int argc, char* argv[])
 	case 'v':
 		version();
 		break;
-	case 'y':
-		if (expander.vendor) {
-			if (expander.vendor == V_NOKIA || expander.vendor == V_NOKIA_MD) {
-				expander.vendor = V_NOKIA_SROS_YAML;
-				break;
-			}
-		}
-		usage(1);
-		break;
-
 	case 'z':
 		if (expander.generation)
 			exclusive();
