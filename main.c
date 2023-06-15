@@ -561,7 +561,7 @@ main(int argc, char* argv[])
 	    && expander.vendor != V_JUNIPER)
 		sx_report(SX_FATAL, "Route-filter-lists (-z) supported for Juniper (-J)"
 		    " output only\n");
-	
+
 	if (expander.generation == T_COUNTING_FILTER
 	    && expander.vendor != V_NOKIA_MD)
 		sx_report(SX_FATAL, "Prefix match counting IP ingress/egress filters (-c) supported"

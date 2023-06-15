@@ -1771,7 +1771,7 @@ bgpq4_print_nokia_md_counting_filter(FILE *f, struct bgpq_expander *b)
 	RB_FOREACH(asne, asn_tree, &b->asnlist) {
 
 		uint32_t entry = max( asne->asn % 2097152, (uint32_t)1); // entry based on AS, max 2097151
-    	
+
 		sprintf(asbuf, "AS%u", entry);
 		b->name = asbuf;
 		bgpq4_print_nokia_md_prefixlist(f,b);
@@ -1779,17 +1779,17 @@ bgpq4_print_nokia_md_counting_filter(FILE *f, struct bgpq_expander *b)
 		// Enable auto-id for filters
 		fprintf(f,"/configure filter md-auto-id { filter-id-range { start 1 end 65535 } }\n");
 
-		// Add an entry to match the prefix list to the named IP filters for ingress/egress
+		// Add an entry to match the prefix list to the named IP filters for ingress/egress based on dst/src IP
 		for (int i=0; i<2; ++i) {
 		  fprintf(f,"/configure filter delete %s-filter \"%s-%s\"\n",
 		      b->tree->family == AF_INET ? "ip" : "ipv6", bname, i==0 ? "in" : "out");
 		  fprintf(f,"/configure filter %s-filter \"%s-%s\" {\n",
 		      b->tree->family == AF_INET ? "ip" : "ipv6", bname, i==0 ? "in" : "out");
-    	  fprintf(f,"default-action accept\n");
+		  fprintf(f,"default-action accept\n");
 		  // Note: could add a port number or list of ports to match (say) only web traffic, DNS, etc.
 		  fprintf(f,"entry %u { match { %s-ip { ip-prefix-list \"%s\" } }\naction accept }\n", 
 		      entry, i==0 ? "src" : "dst", asbuf );
-		  
+
 		  fprintf(f,"}\n");
 		}
 	}
