@@ -1311,6 +1311,28 @@ checkSon:
 }
 
 static void
+bgpq4_print_nokia_sros_yang_ipfilter(struct sx_radix_node *n, void *ff)
+{
+	char 	 prefix[128];
+	FILE	*f = (FILE*)ff;
+
+	if (n->isGlue)
+		goto checkSon;
+
+	if (!f)
+		f = stdout;
+
+	sx_prefix_snprintf(n->prefix, prefix, sizeof(prefix));
+
+	fprintf(f, "     - ip-prefix: %s\n", prefix);
+
+checkSon:
+	if (n->son)
+		bgpq4_print_nokia_sros_yang_ipfilter(n->son, ff);
+}
+
+
+static void
 bgpq4_print_nokia_prefix(struct sx_radix_node *n, void *ff)
 {
 	char 	 prefix[128];
@@ -1375,6 +1397,40 @@ checkSon:
 	if (n->son)
 		bgpq4_print_nokia_md_prefix(n->son, ff);
 }
+
+static void
+bgpq4_print_nokia_sros_yaml_prefix(struct sx_radix_node *n, void *ff)
+{
+	char 	 prefix[128];
+	FILE	*f = (FILE*)ff;
+
+	if (n->isGlue)
+		goto checkSon;
+
+	if (!f)
+		f = stdout;
+
+	sx_prefix_snprintf(n->prefix, prefix, sizeof(prefix));
+    fprintf(f, "   - ip-prefix: \"%s\"\n", prefix);
+	if (!n->isAggregate) {
+		fprintf(f, "     type: \"exact\"\n");
+	} else {
+		if (n->aggregateLow > n->prefix->masklen) {
+			fprintf(f,"     type: \"range\"\n"
+			          "     start-length: %u\n"
+			          "     end-length: %u\n",
+			    n->aggregateLow, n->aggregateHi);
+		} else {
+			fprintf(f,"     type: \"through\"\n"
+			          "     through-length: %u\n", n->aggregateHi);
+		}
+	}
+
+checkSon:
+	if (n->son)
+		bgpq4_print_nokia_sros_yaml_prefix(n->son, ff);
+}
+
 
 static void
 bgpq4_print_nokia_srl_prefix(struct sx_radix_node *n, void *ff)
@@ -1760,6 +1816,25 @@ bgpq4_print_nokia_md_prefixlist(FILE *f, struct bgpq_expander *b)
 }
 
 static void
+bgpq4_print_nokia_sros_yang_prefixlist(FILE *f, struct bgpq_expander *b)
+{
+	bname = b->name ? b->name : "NN";
+
+	// YAML - no delete
+	fprintf(f,"  match-list:\n   %s-prefix-list:\n    name: \"%s\"\n",
+	    b->tree->family == AF_INET ? "ip" : "ipv6", bname);
+	
+	if (!sx_radix_tree_empty(b->tree)) {
+		fprintf(f,"     prefix:\n");
+		sx_radix_tree_foreach(b->tree, bgpq4_print_nokia_sros_yang_ipfilter, f);
+	} else {
+		fprintf(f,"# generated %s-prefix-list %s is empty\n",
+		    b->tree->family == AF_INET ? "ip" : "ipv6", bname);
+	}
+}
+
+
+static void
 bgpq4_print_nokia_md_counting_filter(FILE *f, struct bgpq_expander *b)
 {
 	struct asn_entry	*asne;
@@ -1776,24 +1851,42 @@ bgpq4_print_nokia_md_counting_filter(FILE *f, struct bgpq_expander *b)
 
 		sprintf(asbuf, "AS%u", entry);
 		b->name = asbuf;
-		bgpq4_print_nokia_md_prefixlist(f,b);
+
+		const char* MD_CLI[5] = {
+			"/configure filter md-auto-id { filter-id-range { start 1 end 65535 } }\n",
+			"/configure filter %s-filter \"%s-%s\" {\n",
+			"default-action accept\n",
+			"entry %u { match { %s-ip { ip-prefix-list \"%s\" } }\naction accept }\n",
+			"}\n"
+		};
+
+		const char* YAML_CLI[5] = {
+			"configure:\n filter:\n  md-auto-id:\n   filter-id-range:\n    start: 1\n    end: 65535\n",
+			"  %s-filter:\n   name: \"%s-%s\"\n",
+			"",
+			"",
+			"\n"
+		};
+		const char* (*format)[5] = b->vendor == V_NOKIA_SROS_YAML ? &YAML_CLI : &MD_CLI;
 
 		// Enable auto-id for filters
-		fprintf(f,"/configure filter md-auto-id { filter-id-range { start 1 end 65535 } }\n");
+		fprintf(f,(*format)[0]);
+
+		if (b->vendor==V_NOKIA_MD)
+			bgpq4_print_nokia_md_prefixlist(f,b);
+		else
+			bgpq4_print_nokia_sros_yang_prefixlist(f,b);
 
 		// Add an entry to match the prefix list to the named IP filters for ingress/egress based on dst/src IP
 		for (int i=0; i<2; ++i) {
 		  // Do not delete, to allow for multiple filter entries for different AS
 		  // fprintf(f,"/configure filter delete %s-filter \"%s-%s\"\n",
 		  //    b->tree->family == AF_INET ? "ip" : "ipv6", namebuf, i==0 ? "in" : "out");
-		  fprintf(f,"/configure filter %s-filter \"%s-%s\" {\n",
-		      b->tree->family == AF_INET ? "ip" : "ipv6", namebuf, i==0 ? "in" : "out");
-		  fprintf(f,"default-action accept\n");
+		  fprintf(f,(*format)[1],b->tree->family == AF_INET ? "ip" : "ipv6", namebuf, i==0 ? "in" : "out");
+		  fprintf(f,(*format)[2]);
 		  // Note: could add a port number or list of ports to match (say) only web traffic, DNS, etc.
-		  fprintf(f,"entry %u { match { %s-ip { ip-prefix-list \"%s\" } }\naction accept }\n", 
-		      entry, i==0 ? "src" : "dst", asbuf );
-
-		  fprintf(f,"}\n");
+		  fprintf(f,(*format)[3], entry, i==0 ? "src" : "dst", asbuf );
+		  fprintf(f,(*format)[4]);
 		}
 	}
 }
@@ -1813,6 +1906,21 @@ bgpq4_print_nokia_md_ipprefixlist(FILE *f, struct bgpq_expander *b)
 	}
 
 	fprintf(f,"}\n");
+}
+
+static void
+bgpq4_print_nokia_sros_yaml_ipprefixlist(FILE *f, struct bgpq_expander *b)
+{
+	bname = b->name ? b->name : "NN";
+
+	fprintf(f, "configure: \n policy-options:\n  prefix-list:\n   name: \"%s\"\n",
+	    bname);
+
+
+	if (!sx_radix_tree_empty(b->tree)) {
+		fprintf(f, "   prefix:\n");
+		sx_radix_tree_foreach(b->tree, bgpq4_print_nokia_sros_yaml_prefix, f);
+	}
 }
 
 static void
@@ -1965,6 +2073,9 @@ bgpq4_print_prefixlist(FILE *f, struct bgpq_expander *b)
 	case V_NOKIA_MD:
 		bgpq4_print_nokia_md_ipprefixlist(f, b);
 		break;
+	case V_NOKIA_SROS_YAML:
+		bgpq4_print_nokia_sros_yaml_ipprefixlist(f, b);
+		break;
 	case V_NOKIA_SRL:
 		bgpq4_print_nokia_srl_prefixset(f, b);
 		break;
@@ -2003,6 +2114,9 @@ bgpq4_print_eacl(FILE *f, struct bgpq_expander *b)
 		break;
 	case V_NOKIA_MD:
 		bgpq4_print_nokia_md_prefixlist(f, b);
+		break;
+	case V_NOKIA_SROS_YAML:
+		bgpq4_print_nokia_sros_yang_prefixlist(f, b);
 		break;
 	case V_NOKIA_SRL:
 		bgpq4_print_nokia_srl_aclipfilter(f, b);
@@ -2053,6 +2167,7 @@ bgpq4_print_counting_filter(FILE *f, struct bgpq_expander *b)
 {
 	switch(b->vendor) {
 	case V_NOKIA_MD:
+	case V_NOKIA_SROS_YAML:
 		bgpq4_print_nokia_md_counting_filter(f, b);
 		break;
 	default:

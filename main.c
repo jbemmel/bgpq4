@@ -200,7 +200,7 @@ main(int argc, char* argv[])
 		expander.sources=getenv("IRRD_SOURCES");
 
 	while ((c = getopt(argc, argv,
-	    "23467a:AbBcdDEeF:S:jJKf:l:L:m:M:NnpW:r:R:G:H:tTh:UuwXsvz")) != EOF) {
+	    "23467a:AbBccdDEeF:S:jJKf:l:L:m:M:NnpW:r:R:G:H:tTh:UuwXsvyz")) != EOF) {
 	switch (c) {
 	case '2':
 		if (expander.vendor != V_NOKIA_MD) {
@@ -457,6 +457,16 @@ main(int argc, char* argv[])
 	case 'v':
 		version();
 		break;
+	case 'y':
+		if (expander.vendor) {
+			if (expander.vendor == V_NOKIA || expander.vendor == V_NOKIA_MD) {
+				expander.vendor = V_NOKIA_SROS_YAML;
+				break;
+			}
+		}
+		usage(1);
+		break;
+
 	case 'z':
 		if (expander.generation)
 			exclusive();
@@ -563,9 +573,10 @@ main(int argc, char* argv[])
 		    " output only\n");
 
 	if (expander.generation == T_TRAFFIC_COUNTING_FILTER
-	    && expander.vendor != V_NOKIA_MD)
+	    && expander.vendor != V_NOKIA_MD
+		&& expander.vendor != V_NOKIA_SROS_YAML)
 		sx_report(SX_FATAL, "Packet counting IP ingress/egress filters based on "
-		    "prefix lists (-c) supported for Nokia MD (-n) output only\n");
+		    "prefix lists (-c) supported for Nokia MD (-n) or YAML (-y) output only\n");
 
 	if (expander.generation == T_ASSET
 	    && expander.vendor != V_JSON
