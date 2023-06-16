@@ -1324,7 +1324,7 @@ bgpq4_print_nokia_sros_yang_ipfilter(struct sx_radix_node *n, void *ff)
 
 	sx_prefix_snprintf(n->prefix, prefix, sizeof(prefix));
 
-	fprintf(f, "     - ip-prefix: %s\n", prefix);
+	fprintf(f, "    - ip-prefix: %s\n", prefix);
 
 checkSon:
 	if (n->son)
@@ -1411,14 +1411,14 @@ bgpq4_print_nokia_sros_yaml_prefix(struct sx_radix_node *n, void *ff)
 		f = stdout;
 
 	sx_prefix_snprintf(n->prefix, prefix, sizeof(prefix));
-    fprintf(f, "   - ip-prefix: \"%s\"\n", prefix);
+    fprintf(f, "  - ip-prefix: \"%s\"\n", prefix);
 	if (!n->isAggregate) {
-		fprintf(f, "     type: \"exact\"\n");
+		fprintf(f, "    type: \"exact\"\n");
 	} else {
 		if (n->aggregateLow > n->prefix->masklen) {
-			fprintf(f,"     type: \"range\"\n"
-			          "     start-length: %u\n"
-			          "     end-length: %u\n",
+			fprintf(f,"    type: \"range\"\n"
+			          "    start-length: %u\n"
+			          "    end-length: %u\n",
 			    n->aggregateLow, n->aggregateHi);
 		} else {
 			fprintf(f,"     type: \"through\"\n"
@@ -1821,11 +1821,11 @@ bgpq4_print_nokia_sros_yang_prefixlist(FILE *f, struct bgpq_expander *b)
 	bname = b->name ? b->name : "NN";
 
 	// YAML - no delete
-	fprintf(f,"  match-list:\n   %s-prefix-list:\n    name: \"%s\"\n",
+	fprintf(f,"  match-list:\n   %s-prefix-list:\n    prefix-list-name: \"%s\"\n",
 	    b->tree->family == AF_INET ? "ip" : "ipv6", bname);
 	
 	if (!sx_radix_tree_empty(b->tree)) {
-		fprintf(f,"     prefix:\n");
+		fprintf(f,"    prefix:\n");
 		sx_radix_tree_foreach(b->tree, bgpq4_print_nokia_sros_yang_ipfilter, f);
 	} else {
 		fprintf(f,"# generated %s-prefix-list %s is empty\n",
@@ -1862,9 +1862,9 @@ bgpq4_print_nokia_md_counting_filter(FILE *f, struct bgpq_expander *b)
 
 		const char* YAML_CLI[5] = {
 			"configure:\n filter:\n  md-auto-id:\n   filter-id-range:\n    start: 1\n    end: 65535\n",
-			"  %s-filter:\n   name: \"%s-%s\"\n",
-			"",
-			"",
+			"  %s-filter:\n   filter-name: \"%s-%s\"\n",
+			"   default-action: accept\n",
+			"   entry:\n   - entry-id: %u\n     match:\n      %s-ip:\n       ip-prefix-list: \"%s\"\n     action:\n      accept: [null]\n",
 			"\n"
 		};
 		const char* (*format)[5] = b->vendor == V_NOKIA_SROS_YAML ? &YAML_CLI : &MD_CLI;
@@ -1918,7 +1918,7 @@ bgpq4_print_nokia_sros_yaml_ipprefixlist(FILE *f, struct bgpq_expander *b)
 
 
 	if (!sx_radix_tree_empty(b->tree)) {
-		fprintf(f, "   prefix:\n");
+		fprintf(f, "  prefix:\n");
 		sx_radix_tree_foreach(b->tree, bgpq4_print_nokia_sros_yaml_prefix, f);
 	}
 }
