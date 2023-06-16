@@ -1862,9 +1862,9 @@ bgpq4_print_nokia_md_counting_filter(FILE *f, struct bgpq_expander *b)
 
 		const char* YAML_CLI[5] = {
 			"configure:\n filter:\n  md-auto-id:\n   filter-id-range:\n    start: 1\n    end: 65535\n",
-			"  %s-filter:\n   filter-name: \"%s-%s\"\n",
-			"   default-action: accept\n",
-			"   entry:\n   - entry-id: %u\n     match:\n      %s-ip:\n       ip-prefix-list: \"%s\"\n     action:\n      accept: [null]\n",
+			"  - filter-name: \"%2$s-%3$s\" # %1$s\n",
+			"    default-action: accept\n",
+			"    entry:\n    - entry-id: %u\n      match:\n       %s-ip:\n        ip-prefix-list: \"%s\"\n      action:\n       accept: [null]\n",
 			"\n"
 		};
 		const char* (*format)[5] = b->vendor == V_NOKIA_SROS_YAML ? &YAML_CLI : &MD_CLI;
@@ -1874,15 +1874,17 @@ bgpq4_print_nokia_md_counting_filter(FILE *f, struct bgpq_expander *b)
 
 		if (b->vendor==V_NOKIA_MD)
 			bgpq4_print_nokia_md_prefixlist(f,b);
-		else
+		else {
 			bgpq4_print_nokia_sros_yang_prefixlist(f,b);
+			fprintf(f,"  %s-filter:\n", b->tree->family == AF_INET ? "ip" : "ipv6");
+		}
 
 		// Add an entry to match the prefix list to the named IP filters for ingress/egress based on dst/src IP
 		for (int i=0; i<2; ++i) {
 		  // Do not delete, to allow for multiple filter entries for different AS
 		  // fprintf(f,"/configure filter delete %s-filter \"%s-%s\"\n",
 		  //    b->tree->family == AF_INET ? "ip" : "ipv6", namebuf, i==0 ? "in" : "out");
-		  fprintf(f,(*format)[1],b->tree->family == AF_INET ? "ip" : "ipv6", namebuf, i==0 ? "in" : "out");
+		  fprintf(f,(*format)[1], b->tree->family == AF_INET ? "ip" : "ipv6", namebuf, i==0 ? "in" : "out");
 		  fprintf(f,(*format)[2]);
 		  // Note: could add a port number or list of ports to match (say) only web traffic, DNS, etc.
 		  fprintf(f,(*format)[3], entry, i==0 ? "src" : "dst", asbuf );
